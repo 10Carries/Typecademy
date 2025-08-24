@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Typecademy</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      background-color: #f0f0f0;
+    }
+    #focus-letters {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    #letter-status {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 10px 0;
+      max-width: 600px;
+      gap: 5px;
+    }
+    .letter-box {
+      width: 30px;
+      height: 30px;
+      border: 2px solid #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      position: relative;
+      background-color: white;
+    }
+    .locked {
+      background: repeating-linear-gradient(45deg, #f88, #f88 5px, #fff 5px, #fff 10px);
+    }
+    .letter-box:hover .tooltip {
+      display: block;
+    }
+    .tooltip {
+      display: none;
+      position: absolute;
+      top: 35px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fff;
+      border: 1px solid #333;
+      padding: 5px;
+      font-size: 12px;
+      white-space: nowrap;
+      z-index: 10;
+    }
+    #text-display {
+      font-size: 24px;
+      margin: 20px;
+      padding: 10px;
+      background: #fff;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      min-height: 100px;
+      font-family: monospace;
+      max-width: 90vw;
+      word-break: break-word;
+    }
+    .line {
+      display: block;
+      margin-bottom: 5px;
+    }
+    .char {
+      display: inline-block;
+      position: relative;
+      white-space: pre;
+    }
+    .cursor {
+      border-left: 2px solid black;
+      animation: blink 1s steps(2, start) infinite;
+    }
+    @keyframes blink {
+      to { border-color: transparent; }
+    }
+    .correct { color: green; }
+    .error { color: red; }
+    .fixed { color: goldenrod; }
+    .incorrect {
+      color: red;
+      position: absolute;
+      top: 0;
+      left: 0;
+      opacity: 1;
+      animation: fadeout 1s forwards;
+    }
+    @keyframes fadeout {
+      to { opacity: 0; transform: translateY(-20px); }
+    }
+    .keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin: 20px auto;
+      width: max-content;
+    }
+    .row {
+      display: flex;
+    }
+    .key {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #ddd;
+      border-radius: 4px;
+      border: 1px solid #999;
+      margin: 1px;
+      font-size: 14px;
+      padding: 2px;
+      text-align: center;
+      line-height: 1.2;
+      user-select: none;
+      transition: background 0.1s, color 0.1s;
+      height: 40px;
+    }
+    .key span.shift {
+      font-size: 12px;
+      color: #555;
+    }
+    .current {
+      background-color: #88f !important;
+      color: white;
+    }
+    .correct-pressed {
+      background-color: limegreen !important;
+      
+      color: white;
+    }
+    .incorrect-pressed {
+      background-color: crimson !important;
+      color: white;
+    }
+    .size-1 { width: 40px; }
+    .size-1-5 { width: 60px; }
+    .size-2 { width: 80px; }
+    .size-2-25 {width: 90px;}
+    .size-2-5 { width: 110px; }
+    .size-3 { width: 120px; }
+    .size-4 { width: 160px; }
+    .size-6 { width: 275px; }
+
+    /* .pressed { background-color: #88f !important; color: white; } */
+    #stats {
+      margin-top: 20px;
+      font-size: 16px;
+    }
+    #export-btn {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Typecademy</h1>
+  <div id="letter-status"></div>
+  <div id="focus-letters"></div>
+  <div id="text-display"></div>
+  <div class="keyboard" id="keyboard">
+    <div class="row">
+      <div class="key size-1" data-key="`"><span class="shift">~</span>`</div>
+      <div class="key size-1" data-key="1"><span class="shift">!</span>1</div>
+      <div class="key size-1" data-key="2"><span class="shift">@</span>2</div>
+      <div class="key size-1" data-key="3"><span class="shift">#</span>3</div>
+      <div class="key size-1" data-key="4"><span class="shift">$</span>4</div>
+      <div class="key size-1" data-key="5"><span class="shift">%</span>5</div>
+      <div class="key size-1" data-key="6"><span class="shift">^</span>6</div>
+      <div class="key size-1" data-key="7"><span class="shift">&</span>7</div>
+      <div class="key size-1" data-key="8"><span class="shift">*</span>8</div>
+      <div class="key size-1" data-key="9"><span class="shift">(</span>9</div>
+      <div class="key size-1" data-key="0"><span class="shift">)</span>0</div>
+      <div class="key size-1" data-key="-"><span class="shift">_</span>-</div>
+      <div class="key size-1" data-key="="><span class="shift">+</span>=</div>
+      <div class="key size-2" data-key="Backspace">Backspace</div>
+    </div>
+    <div class="row">
+      <div class="key size-2" data-key="Tab">Tab</div>
+      <div class="key size-1" data-key="q">Q</div>
+      <div class="key size-1" data-key="w">W</div>
+      <div class="key size-1" data-key="e">E</div>
+      <div class="key size-1" data-key="r">R</div>
+      <div class="key size-1" data-key="t">T</div>
+      <div class="key size-1" data-key="y">Y</div>
+      <div class="key size-1" data-key="u">U</div>
+      <div class="key size-1" data-key="i">I</div>
+      <div class="key size-1" data-key="o">O</div>
+      <div class="key size-1" data-key="p">P</div>
+      <div class="key size-1" data-key="["><span class="shift">{</span>[</div>
+      <div class="key size-1" data-key="]"><span class="shift">}</span>]</div>
+      <div class="key size-1" data-key="\"><span class="shift">|</span>\</div>
+    </div>
+    <div class="row">
+      <div class="key size-2-25" data-key="CapsLock">CapsLock</div>
+      <div class="key size-1" data-key="a">A</div>
+      <div class="key size-1" data-key="s">S</div>
+      <div class="key size-1" data-key="d">D</div>
+      <div class="key size-1" data-key="f">F</div>
+      <div class="key size-1" data-key="g">G</div>
+      <div class="key size-1" data-key="h">H</div>
+      <div class="key size-1" data-key="j">J</div>
+      <div class="key size-1" data-key="k">K</div>
+      <div class="key size-1" data-key="l">L</div>
+      <div class="key size-1" data-key=";"><span class="shift">:</span>;</div>
+      <div class="key size-1" data-key="'"><span class="shift">"</span>'</div>
+      <div class="key size-2" data-key="Enter">Enter</div>
+    </div>
+    <div class="row">
+      <div class="key size-2-5" data-key="ShiftLeft">Shift</div>
+      <div class="key size-1" data-key="z">Z</div>
+      <div class="key size-1" data-key="x">X</div>
+      <div class="key size-1" data-key="c">C</div>
+      <div class="key size-1" data-key="v">V</div>
+      <div class="key size-1" data-key="b">B</div>
+      <div class="key size-1" data-key="n">N</div>
+      <div class="key size-1" data-key="m">M</div>
+      <div class="key size-1" data-key=","><span class="shift">&lt;</span>,</div>
+      <div class="key size-1" data-key="."><span class="shift">&gt;</span>.</div>
+      <div class="key size-1" data-key="/"><span class="shift">?</span>/</div>
+      <div class="key size-2-5" data-key="ShiftRight">Shift</div>
+    </div>
+    <div class="row">
+      <div class="key size-2" data-key="ControlLeft">Ctrl</div>
+      <div class="key size-3" data-key="AltLeft">Alt</div>
+      <div class="key size-6" data-key=" ">Space</div>
+      <div class="key size-3" data-key="AltRight">Alt</div>
+      <div class="key size-2" data-key="ControlRight">Ctrl</div>
+    </div>
+  </div>
+  <div id="stats"></div>
+  <div id="letter-accuracy" style="margin-top:20px; font-family:monospace;"></div>
+  <button id="export-btn">Export Save Data</button>
+  <input type="file" id="import-input" />
+
+  <script src="./script.js">
+    
+  </script>
+</body>
+</html>
