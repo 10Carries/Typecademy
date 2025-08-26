@@ -1,15 +1,353 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typecademy</title>
+  <style>
+    /* Reset */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Inter", "Segoe UI", sans-serif;
+    }
+
+    body {
+        background: #f9fafb;
+        color: #111827;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
+    }
+
+    /* Background grid pattern */
+    body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: 
+        linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        z-index: 0;
+    }
+
+    /* Gradient blobs */
+    .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(100px);
+        opacity: 0.5;
+        z-index: 0;
+    }
+    .blob1 {
+        width: 350px;
+        height: 350px;
+        background: #93c5fd;
+        top: -100px;
+        left: -120px;
+    }
+    .blob2 {
+        width: 400px;
+        height: 400px;
+        background: #f9a8d4;
+        bottom: -150px;
+        right: -150px;
+    }
+
+    /* Navbar */
+    nav {
+        width: 100%;
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #ffffffcc;
+        backdrop-filter: blur(6px);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    nav .logo {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #2563eb;
+    }
+
+    nav .nav-links a {
+        margin-left: 1rem;
+        text-decoration: none;
+        color: #374151;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        transition: background 0.2s ease;
+        cursor: pointer;
+    }
+
+    nav .nav-links a:hover {
+        background: #f3f4f6;
+    }
+
+    /* Hero */
+    .hero {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 3rem;
+        padding-bottom: 0;
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero h1 {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #111827;
+        margin-bottom: 1rem;
+    }
+
+    .hero p {
+        font-size: 1.25rem;
+        color: #4b5563;
+        max-width: 600px;
+        margin-bottom: 2rem;
+    }
+    .warning {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: start;
+        align-items: center;
+        padding: 0rem;
+        position: relative;
+        z-index: 1;
+        font-size: 1.5rem;
+        color: #c2c802;
+    }
+
+    /* Keyboard Card */
+    .keyboard-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        display: inline-block;
+    }
+
+    .keyboard {
+        display: grid;
+        grid-template-columns: repeat(10, 40px);
+        gap: 6px;
+        justify-content: center;
+    }
+
+    .key {
+        background: #f3f4f6;
+        border-radius: 6px;
+        height: 40px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 0.9rem;
+        color: #111827;
+        box-shadow: inset 0 -2px 0 rgba(0,0,0,0.05);
+    }
+
+    /* CTA Button */
+    .cta {
+        margin-top: 2rem;
+    }
+
+    .cta a {
+        text-decoration: none;
+        background: #2563eb;
+        color: white;
+        padding: 0.8rem 1.6rem;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        transition: background 0.2s ease;
+    }
+
+    .cta a:hover {
+        background: #1e40af;
+    }
+
+    /* Modal */
+    .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 20;
+    }
+
+    .modal.active {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 1rem;
+        max-width: 400px;
+        text-align: center;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+
+    .modal-content p {
+        margin-bottom: 1.5rem;
+        font-size: 1.1rem;
+        color: #374151;
+    }
+
+    .modal-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+    }
+
+    .modal-buttons button {
+        padding: 0.6rem 1.2rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+    .btn-continue {
+        background: #2563eb;
+        color: white;
+    }
+    .btn-continue:hover {
+        background: #1e40af;
+    }
+
+    .btn-back {
+        background: #e5e7eb;
+        color: #111827;
+    }
+    .btn-back:hover {
+        background: #d1d5db;
+    }
+    /* Responsive */
+    @media (max-width: 768px) {
+        .hero h1 {
+        font-size: 2.2rem;
+        }
+        .keyboard {
+        grid-template-columns: repeat(6, 40px);
+        }
+    }
+  </style>
 </head>
 <body>
-    <h1>Typing practice</h1>
-    <div>
-        <button>Hide keyboard</button>
-        <a href="./pages/typing.html">Start typing</a>
+  <!-- Background blobs -->
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+
+  <!-- Navbar -->
+  <nav>
+    <div class="logo">Typecademy</div>
+    <div class="nav-links">
+        <a href="login.html">Login</a>
+        <a href="about_us.html">About Us</a>
+        <a id="guest-btn">Continue as Guest</a>
     </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <div class="hero">
+    <h1>Master Touch Typing</h1>
+    <p>Boost your typing speed and accuracy with Typecademy — your personal academy for typing success.</p>
+
+    <!-- Keyboard Illustration -->
+    <div class="keyboard-card">
+        <div class="keyboard">
+        <div class="key">Q</div>
+        <div class="key">W</div>
+        <div class="key">E</div>
+        <div class="key">R</div>
+        <div class="key">T</div>
+        <div class="key">Y</div>
+        <div class="key">U</div>
+        <div class="key">I</div>
+        <div class="key">O</div>
+        <div class="key">P</div>
+        <div class="key">A</div>
+        <div class="key">S</div>
+        <div class="key">D</div>
+        <div class="key">F</div>
+        <div class="key">G</div>
+        <div class="key">H</div>
+        <div class="key">J</div>
+        <div class="key">K</div>
+        <div class="key">L</div>
+        <div class="key">;</div>
+        </div>
+    </div>
+    
+
+    <!-- Call to Action -->
+    <div class="cta">
+        <a href="./pages/typing.html" id="guest-cta">Start Typing</a>
+    </div>
+  </div>
+
+<p class="warning">This website is currently being built so expect lots of ui changes and new features. Some of the features and buttons don't currently work.</p>
+
+  <!-- Modal -->
+  <div class="modal" id="guest-modal">
+    <div class="modal-content">
+        <p>Progress might not save if you continue as a guest. Are you sure you don't want to log in?</p>
+        <div class="modal-buttons">
+        <button class="btn-continue" id="continue-btn">Continue</button>
+        <button class="btn-back" id="back-btn">Go Back</button>
+        </div>
+    </div>
+  </div>
+
+  <script>
+    const guestBtn = document.getElementById("guest-btn");
+    const guestCta = document.getElementById("guest-cta");
+    const modal = document.getElementById("guest-modal");
+    const continueBtn = document.getElementById("continue-btn");
+    const backBtn = document.getElementById("back-btn");
+
+    // Show modal when clicking guest links
+    guestBtn.addEventListener("click", () => {
+        modal.classList.add("active");
+    });
+    guestCta.addEventListener("click", (e) => {
+        e.preventDefault();
+        modal.classList.add("active");
+    });
+
+    // Continue -> go to typing.html
+    continueBtn.addEventListener("click", () => {
+        window.location.href = "./pages/typing.html";
+    });
+
+    // Go Back -> close modal
+    backBtn.addEventListener("click", () => {
+        modal.classList.remove("active");
+    });
+  </script>
 </body>
 </html>
