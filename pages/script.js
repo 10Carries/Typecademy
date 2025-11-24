@@ -358,6 +358,11 @@ let wordList = [];
       const focusDiv = document.getElementById("focus-letters");
       focusDiv.textContent = "Focus letters:" + (currentFocusLetters.length > 0 ? " " + currentFocusLetters.join(", ") : " None");
       renderLetterStatus();
+      if (isGuest) {
+        localStorage.setItem("typingSave", JSON.stringify(buildSaveData()));
+      } else {
+          saveProgressToCloud();
+      }
     }
 
     function renderText() {
@@ -407,6 +412,11 @@ let wordList = [];
 
 
     document.addEventListener("keydown", e => {
+      if (isGuest) {
+        localStorage.setItem("typingSave", JSON.stringify(buildSaveData()));
+      } else {
+          saveProgressToCloud();
+      }
       const expectedChar = exampleString[currentIndex];
       const actualChar = e.key;
       const isCorrect = actualChar == expectedChar;
@@ -663,4 +673,5 @@ let wordList = [];
     // Profile button (placeholder)
     document.getElementById("profile-btn").onclick = () => {
         alert("Profile page coming soon!");
+
     };
