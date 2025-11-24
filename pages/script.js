@@ -1,3 +1,116 @@
+function applySaveData(data) {
+  lessonCount = data.lessonCount ?? 0;
+  unlockedCount = data.unlockedCount ?? 2;
+  lessonsSinceLastUnlock = data.lessonsSinceLastUnlock ?? 0;
+  lastUnlockedLesson = data.lastUnlockedLesson ?? 0;
+
+  Object.assign(perLetterStats, data.perLetterStats ?? {});
+  Object.assign(mistakeMap, data.mistakeMap ?? {});
+}
+
+function buildSaveData() {
+  return {
+    lessonCount,
+    unlockedCount,
+    lessonsSinceLastUnlock,
+    lastUnlockedLesson,
+    perLetterStats,
+    mistakeMap
+  };
+}
+
+function getDefaultSave() {
+  return {
+    lessonCount: 0,
+    unlockedCount: 2,
+    lessonsSinceLastUnlock: 0,
+    lastUnlockedLesson: 0,
+    perLetterStats: {},
+    mistakeMap: {}
+  };
+}
+
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
+import { 
+  getAuth,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA-FFNExXdT3jDTNZSJKi1jFaI_qCRTMUQ",
+  authDomain: "typecademy-47e1a.firebaseapp.com",
+  projectId: "typecademy-47e1a",
+  storageBucket: "typecademy-47e1a.firebasestorage.app",
+  messagingSenderId: "578378632896",
+  appId: "1:578378632896:web:b71e02b0bf7eee7430a725",
+  measurementId: "G-477KLYE97L"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let currentUser = null;
+let isGuest = false;
+let saveData = {};
+let currentFocusLetters = [];
+
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        console.log("Signed in as:", user.email);
+        currentUser = user;
+        isGuest = false;
+        loadUserSaveFromCloud(user.uid);
+    } else {
+        console.log("Guest mode");
+        currentUser = null;
+        isGuest = true;
+        loadLocalSave();
+    }
+});
+
+async function loadUserSaveFromCloud(uid) {
+  const docRef = doc(db, "users", uid);
+  const snap = await getDoc(docRef);
+
+  if (snap.exists()) {
+    saveData = snap.data().progress || getDefaultSave();
+  } else {
+    saveData = getDefaultSave();
+    await setDoc(docRef, { progress: saveData });
+  }
+
+  applySaveData(saveData);
+  initializeTypingApp();
+}
+
+function loadLocalSave() {
+  const saved = localStorage.getItem("typingSave");
+
+  saveData = saved ? JSON.parse(saved) : getDefaultSave();
+
+  applySaveData(saveData);
+  initializeTypingApp();
+}
+
+async function saveProgressToCloud() {
+  if (!auth.currentUser) return;
+
+  const saveObj = buildSaveData();
+  const ref = doc(db, "users", auth.currentUser.uid);
+
+  await setDoc(ref, { progress: saveObj }, { merge: true });
+}
+
 let wordList = [];
     let lessonCount = 0;
     const unlockSequence = ["f","j","d","k","s","l","a","g","h","q","p","w","o","e","i","r","u","t","y","v","n","b","c","m","x","z"];
@@ -386,6 +499,11 @@ let wordList = [];
 
       updateStats();
       updateCurrentKeyHighlight();
+      if (isGuest) {
+        localStorage.setItem("typingSave", JSON.stringify(buildSaveData()));
+      } else {
+          saveProgressToCloud();
+      }
     });
 
     function highlightKey(code, key, status = "pressed") {
@@ -508,3 +626,41 @@ let wordList = [];
 
     //renderKeyboard();
     loadWordList();
+    function initializeTypingApp() {
+      generateLesson();
+    }
+    document.getElementById("settings-btn").onclick = () => {
+        document.getElementById("settings-popup").style.display = "flex";
+    };
+
+    // Settings popup close
+    document.getElementById("close-settings").onclick = () => {
+        document.getElementById("settings-popup").style.display = "none";
+    };
+
+    // Help button (placeholder)
+    document.getElementById("help-btn").onclick = () => {
+        alert("Help section coming soon!");
+    };
+    
+
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            document.getElementById("login-btn").style.display = "none";
+            document.getElementById("profile-btn").style.display = "inline-block";
+        } else {
+            document.getElementById("login-btn").style.display = "inline-block";
+            document.getElementById("profile-btn").style.display = "none";
+        }
+    });
+
+    // Login button leads to login page
+    document.getElementById("login-btn").onclick = () => {
+        window.location.href = "login.html"; // Or your login page
+    };
+
+    // Profile button (placeholder)
+    document.getElementById("profile-btn").onclick = () => {
+        alert("Profile page coming soon!");
+    };

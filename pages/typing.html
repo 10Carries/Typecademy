@@ -8,6 +8,16 @@
   
 </head>
 <body>
+  <div id="navbar">
+    <a href="../index.html">Typecademy</a>
+
+    <nav>
+      <button id="help-btn">Help</button>
+      <button id="settings-btn">Settings</button>
+      <button id="login-btn">Log In</button>
+      <button id="profile-btn" style="display:none;">Profile</button>
+    </nav>
+  </div>
   <h1>Typecademy</h1>
   <div id="letter-status"></div>
   <div id="focus-letters"></div>
@@ -87,8 +97,14 @@
   <button id="export-btn">Export Save Data</button>
   <input type="file" id="import-input" />
 
-  <script src="./script.js">
-    
-  </script>
+  <div id="settings-popup">
+      <div class="settings-container">
+          <button id="close-settings">✕</button>
+          <h2>Settings</h2>
+
+          <p>More settings will go here later!</p>
+      </div>
+  </div>
+  <script type="module" src="./script.js"></script>
 </body>
 </html>
