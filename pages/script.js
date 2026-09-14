@@ -4,6 +4,13 @@ function applySaveData(data) {
   lessonsSinceLastUnlock = data.lessonsSinceLastUnlock ?? 0;
   lastUnlockedLesson = data.lastUnlockedLesson ?? 0;
 
+  // Clear first so an import fully REPLACES current stats instead of
+  // merging on top of them (Object.assign alone only overwrites keys
+  // that exist in the imported data, leaving stray current-session
+  // letters/mistakes behind).
+  for (const key in perLetterStats) delete perLetterStats[key];
+  for (const key in mistakeMap) delete mistakeMap[key];
+
   Object.assign(perLetterStats, data.perLetterStats ?? {});
   Object.assign(mistakeMap, data.mistakeMap ?? {});
 }
@@ -111,6 +118,14 @@ async function saveProgressToCloud() {
   await setDoc(ref, { progress: saveObj }, { merge: true });
 }
 
+function persistProgress() {
+  if (isGuest) {
+    localStorage.setItem("typingSave", JSON.stringify(buildSaveData()));
+  } else {
+    saveProgressToCloud();
+  }
+}
+
 let wordList = [];
     let lessonCount = 0;
     const unlockSequence = ["f","j","d","k","s","l","a","g","h","q","p","w","o","e","i","r","u","t","y","v","n","b","c","m","x","z"];
@@ -155,62 +170,48 @@ let wordList = [];
       generateLesson();
     }
 
-    // === Export Save Function ===
+    // === Export: download current progress as a JSON file ===
     function exportSaveData() {
-      const saveData = {
-        lessonCount,
-        unlockedCount,
-        lessonsSinceLastUnlock,
-        correctTyped,
-        mistakeMap,
-        perLetterStats,
-      };
-      const blob = new Blob([JSON.stringify(saveData    )], { type: 'application/json' });
+      const data = buildSaveData();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
       const url = URL.createObjectURL(blob);
 
-      const tempInput = document.createElement('textarea');
-      tempInput.value = JSON.stringify(saveData, null, 2);
-      document.body.appendChild(tempInput);
-      tempInput.select();
-      document.execCommand('copy');
-      document.body.removeChild(tempInput);
-
-      alert("Save data copied to clipboard!");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `typecademy-progress-${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
 
-    // === Load Save File Function ===
-    document.getElementById("export-btn").addEventListener("click", () => {
-      const saveData = {
-        lessonCount,
-        unlockedCount,
-        lessonsSinceLastUnlock,
-        lastUnlockedLesson,
-        perLetterStats,
-        mistakeMap
-      };
-      const json = JSON.stringify(saveData, null, 2);
-      navigator.clipboard.writeText(json).then(() => alert("Save data copied to clipboard."));
-    });
+    document.getElementById("export-btn").addEventListener("click", exportSaveData);
 
+    // === Import: restore progress from a previously exported JSON file ===
     document.getElementById("import-input").addEventListener("change", event => {
       const file = event.target.files[0];
       if (!file) return;
+
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const saveData = JSON.parse(reader.result);
-          lessonCount = saveData.lessonCount || 0;
-          unlockedCount = saveData.unlockedCount || 2;
-          lessonsSinceLastUnlock = saveData.lessonsSinceLastUnlock || 0;
-          lastUnlockedLesson = saveData.lastUnlockedLesson || 0;
-          Object.assign(perLetterStats, saveData.perLetterStats || {});
-          Object.assign(mistakeMap, saveData.mistakeMap || {});
+          const importedData = JSON.parse(reader.result);
+          applySaveData(importedData);
+          persistProgress();
           generateLesson();
+          updateLetterAccuracyDisplay(); // refresh immediately, not just after next keystroke
+          alert("Progress imported successfully!");
         } catch (err) {
-          alert("Failed to load save data.");
+          console.error(err);
+          alert("Failed to load save data. Make sure you selected a valid Typecademy export file.");
         }
       };
       reader.readAsText(file);
+
+      // Reset so importing the same filename again still triggers change
+      event.target.value = "";
     });
 
     function updateStatsOnKeyPress(correctChar, inputChar) {
@@ -358,11 +359,7 @@ let wordList = [];
       const focusDiv = document.getElementById("focus-letters");
       focusDiv.textContent = "Focus letters:" + (currentFocusLetters.length > 0 ? " " + currentFocusLetters.join(", ") : " None");
       renderLetterStatus();
-      if (isGuest) {
-        localStorage.setItem("typingSave", JSON.stringify(buildSaveData()));
-      } else {
-          saveProgressToCloud();
-      }
+      persistProgress();
     }
 
     function renderText() {
@@ -412,11 +409,7 @@ let wordList = [];
 
 
     document.addEventListener("keydown", e => {
-      if (isGuest) {
-        localStorage.setItem("typingSave", JSON.stringify(buildSaveData()));
-      } else {
-          saveProgressToCloud();
-      }
+      persistProgress();
       const expectedChar = exampleString[currentIndex];
       const actualChar = e.key;
       const isCorrect = actualChar == expectedChar;
@@ -509,11 +502,7 @@ let wordList = [];
 
       updateStats();
       updateCurrentKeyHighlight();
-      if (isGuest) {
-        localStorage.setItem("typingSave", JSON.stringify(buildSaveData()));
-      } else {
-          saveProgressToCloud();
-      }
+      persistProgress();
     });
 
     function highlightKey(code, key, status = "pressed") {
@@ -614,24 +603,6 @@ let wordList = [];
           if (shiftRight) shiftRight.classList.add('current');
         }
       }
-    }
-
-    function saveProgress() {
-      const saveData = {
-        lessonCount,
-        unlockedCount,
-        lessonsSinceLastUnlock,
-        lastUnlockedLesson,
-        perLetterStats,
-        mistakeMap
-      };
-      const blob = new Blob([JSON.stringify(saveData)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "typing-progress.json";
-      a.click();
-      URL.revokeObjectURL(url);
     }
 
     //renderKeyboard();
