@@ -3,6 +3,7 @@ function applySaveData(data) {
   unlockedCount = data.unlockedCount ?? 2;
   lessonsSinceLastUnlock = data.lessonsSinceLastUnlock ?? 0;
   lastUnlockedLesson = data.lastUnlockedLesson ?? 0;
+  cycle = data.cycle ?? 1;
 
   // Clear first so an import fully REPLACES current stats instead of
   // merging on top of them (Object.assign alone only overwrites keys
@@ -13,6 +14,9 @@ function applySaveData(data) {
 
   Object.assign(perLetterStats, data.perLetterStats ?? {});
   Object.assign(mistakeMap, data.mistakeMap ?? {});
+
+  lessonPerformanceHistory.length = 0;
+  (data.lessonPerformanceHistory ?? []).forEach(entry => lessonPerformanceHistory.push(entry));
 }
 
 function buildSaveData() {
@@ -21,8 +25,10 @@ function buildSaveData() {
     unlockedCount,
     lessonsSinceLastUnlock,
     lastUnlockedLesson,
+    cycle,
     perLetterStats,
-    mistakeMap
+    mistakeMap,
+    lessonPerformanceHistory
   };
 }
 
@@ -32,8 +38,10 @@ function getDefaultSave() {
     unlockedCount: 2,
     lessonsSinceLastUnlock: 0,
     lastUnlockedLesson: 0,
+    cycle: 1,
     perLetterStats: {},
-    mistakeMap: {}
+    mistakeMap: {},
+    lessonPerformanceHistory: []
   };
 }
 
@@ -133,11 +141,25 @@ let wordList = [];
     let lessonsSinceLastUnlock = 0;
     let lastUnlockedLesson = -1;
 
+    // === Cycle / difficulty scaling ===
+    // Once every letter is unlocked, the alphabet relocks and you go through
+    // it again, but the accuracy and speed required to unlock each letter
+    // increases with every cycle you complete.
+    let cycle = 1;
+    const MIN_UNLOCKED_LETTERS = 2;         // can't lock below the starting f/j pair
+    const LESSONS_TO_UNLOCK = 4;            // lessons required since the last unlock
+    const PERFORMANCE_HISTORY_SIZE = 4;     // rolling window the averages are drawn from
+    const BASE_ACCURACY_REQUIREMENT = 80;   // %, required in cycle 1
+    const ACCURACY_INCREMENT_PER_CYCLE = 4; // % added each time you complete a cycle
+    const MAX_ACCURACY_REQUIREMENT = 99;    // 100% isn't realistically achievable
+    const BASE_SPEED_REQUIREMENT = 15;      // WPM, required in cycle 1
+    const SPEED_INCREMENT_PER_CYCLE = 8;    // WPM added each time you complete a cycle
+    const lessonPerformanceHistory = [];    // rolling log of { accuracy, wpm } for the last few lessons
+
     let exampleString = "loading...";
     let currentIndex = 0;
     const correctedIndexes = new Set();
     const wrongIndexes = new Set();
-    let correctTyped = 0;
     let startTime = null;
     const mistakeMap = {};
     const perLetterStats = {}; // { letter: { correct: 0, total: 0, history: [true, false, ...] } }
@@ -270,20 +292,42 @@ let wordList = [];
       });
     }
     
-    function getUnlockedLetters() {
-      return unlockSequence.slice(0, unlockedCount);
+    function getRequiredAccuracy() {
+      return Math.min(MAX_ACCURACY_REQUIREMENT, BASE_ACCURACY_REQUIREMENT + (cycle - 1) * ACCURACY_INCREMENT_PER_CYCLE);
+    }
+
+    function getRequiredSpeed() {
+      return BASE_SPEED_REQUIREMENT + (cycle - 1) * SPEED_INCREMENT_PER_CYCLE;
+    }
+
+    // Average accuracy/WPM over the last few completed lessons. Rounded,
+    // since that's both what gets compared against the requirement and what
+    // is shown on screen (keeps the two in agreement). null if no lessons yet.
+    function getRecentAverage(key) {
+      if (lessonPerformanceHistory.length === 0) return null;
+      const sum = lessonPerformanceHistory.reduce((total, entry) => total + entry[key], 0);
+      return Math.round(sum / lessonPerformanceHistory.length);
     }
 
     function checkUnlockConditions() {
-      const unlockedLetters = getUnlockedLetters();
-      const allAbove80 = unlockedLetters.every(letter => {
-        const stats = perLetterStats[letter];
-        if (!stats || stats.totalAttempts === 0) return false;
-        return (stats.totalCorrect / stats.totalAttempts) >= 0.8;
-      });
+      const requiredAccuracy = getRequiredAccuracy();
+      const requiredSpeed = getRequiredSpeed();
+      const avgAccuracy = getRecentAverage("accuracy");
+      const avgSpeed = getRecentAverage("wpm");
 
-      if ((lessonCount - lastUnlockedLesson >= 4) && allAbove80 && unlockedCount < unlockSequence.length) {
-        unlockedCount++;
+      const meetsRequirements =
+        avgAccuracy !== null && avgAccuracy >= requiredAccuracy &&
+        avgSpeed !== null && avgSpeed >= requiredSpeed;
+
+      if ((lessonCount - lastUnlockedLesson >= LESSONS_TO_UNLOCK) && meetsRequirements) {
+        if (unlockedCount < unlockSequence.length) {
+          unlockedCount++;
+        } else {
+          // Fully unlocked the whole alphabet: relock it and start a new,
+          // harder cycle from scratch.
+          cycle++;
+          unlockedCount = MIN_UNLOCKED_LETTERS;
+        }
         lastUnlockedLesson = lessonCount;
         lessonsSinceLastUnlock = 0;
       }
@@ -348,7 +392,6 @@ let wordList = [];
 
       exampleString = words.join(" ");
       currentIndex = 0;
-      correctTyped = 0;
       startTime = null;
       correctedIndexes.clear();
       wrongIndexes.clear();
@@ -359,7 +402,81 @@ let wordList = [];
       const focusDiv = document.getElementById("focus-letters");
       focusDiv.textContent = "Focus letters:" + (currentFocusLetters.length > 0 ? " " + currentFocusLetters.join(", ") : " None");
       renderLetterStatus();
+      updateAdvancedSettingsDisplay();
+      updateUnlockRequirementsDisplay();
       persistProgress();
+    }
+
+    // === Advanced settings: manually step letter unlocks / lesson progress
+    // back and forward, e.g. for testing or undoing an accidental unlock. ===
+    function adjustUnlockedLetters(delta) {
+      const max = unlockSequence.length;
+      unlockedCount = Math.min(max, Math.max(MIN_UNLOCKED_LETTERS, unlockedCount + delta));
+      generateLesson();
+    }
+
+    function adjustLessonProgress(delta) {
+      lessonsSinceLastUnlock = Math.min(LESSONS_TO_UNLOCK, Math.max(0, lessonsSinceLastUnlock + delta));
+      // Keep lastUnlockedLesson in sync so checkUnlockConditions' own
+      // (lessonCount - lastUnlockedLesson) math agrees with this value.
+      lastUnlockedLesson = lessonCount - lessonsSinceLastUnlock;
+      generateLesson();
+    }
+
+    function updateAdvancedSettingsDisplay() {
+      const letterDisplay = document.getElementById("letter-progress-display");
+      const letterBackBtn = document.getElementById("letter-back-btn");
+      const letterForwardBtn = document.getElementById("letter-forward-btn");
+      if (letterDisplay) {
+        const unlocked = unlockSequence.slice(0, unlockedCount);
+        letterDisplay.textContent = `${unlockedCount} unlocked: ${unlocked.join(" ")}`;
+      }
+      if (letterBackBtn) letterBackBtn.disabled = unlockedCount <= MIN_UNLOCKED_LETTERS;
+      if (letterForwardBtn) letterForwardBtn.disabled = unlockedCount >= unlockSequence.length;
+
+      const lessonDisplay = document.getElementById("lesson-progress-display");
+      const lessonBackBtn = document.getElementById("lesson-back-btn");
+      const lessonForwardBtn = document.getElementById("lesson-forward-btn");
+      if (lessonDisplay) {
+        lessonDisplay.textContent = `Progress to next letter: ${lessonsSinceLastUnlock} / ${LESSONS_TO_UNLOCK}`;
+      }
+      if (lessonBackBtn) lessonBackBtn.disabled = lessonsSinceLastUnlock <= 0;
+      if (lessonForwardBtn) lessonForwardBtn.disabled = lessonsSinceLastUnlock >= LESSONS_TO_UNLOCK;
+    }
+
+    document.getElementById("letter-back-btn").addEventListener("click", () => adjustUnlockedLetters(-1));
+    document.getElementById("letter-forward-btn").addEventListener("click", () => adjustUnlockedLetters(1));
+    document.getElementById("lesson-back-btn").addEventListener("click", () => adjustLessonProgress(-1));
+    document.getElementById("lesson-forward-btn").addEventListener("click", () => adjustLessonProgress(1));
+
+    // Shows the current cycle plus how your recent accuracy/speed compare
+    // to what's required to unlock the next letter.
+    function updateUnlockRequirementsDisplay() {
+      const el = document.getElementById("unlock-requirements");
+      if (!el) return;
+
+      const requiredAccuracy = getRequiredAccuracy();
+      const requiredSpeed = getRequiredSpeed();
+      const avgAccuracy = getRecentAverage("accuracy");
+      const avgSpeed = getRecentAverage("wpm");
+
+      const accuracyText = avgAccuracy === null ? "\u2014" : `${avgAccuracy}%`;
+      const speedText = avgSpeed === null ? "\u2014" : `${avgSpeed} WPM`;
+
+      const accuracyOK = avgAccuracy !== null && avgAccuracy >= requiredAccuracy;
+      const speedOK = avgSpeed !== null && avgSpeed >= requiredSpeed;
+
+      const lessonsProgress = Math.min(lessonsSinceLastUnlock, LESSONS_TO_UNLOCK);
+      const nextStep = unlockedCount < unlockSequence.length
+        ? "To unlock next letter"
+        : "To start next cycle";
+
+      el.innerHTML =
+        `<strong>Cycle ${cycle}</strong> \u2014 lessons since last unlock: ${lessonsProgress}/${LESSONS_TO_UNLOCK}<br>` +
+        `${nextStep}: ` +
+        `<span class="${accuracyOK ? 'req-met' : 'req-unmet'}">accuracy ${accuracyText} (need ${requiredAccuracy}%)</span>` +
+        ` &nbsp;|&nbsp; ` +
+        `<span class="${speedOK ? 'req-met' : 'req-unmet'}">speed ${speedText} (need ${requiredSpeed} WPM)</span>`;
     }
 
     function renderText() {
@@ -383,12 +500,35 @@ let wordList = [];
       textDisplay.appendChild(currentLine);
     }
 
+    // Accuracy over the first `uptoIndex` characters of the sentence. Every
+    // position that was EVER mistyped counts against you, even after you
+    // backspace and fix it. wrongIndexes is a Set, so each position only
+    // costs you once no matter how many times you retry it.
+    function calculateAccuracy(uptoIndex) {
+      if (uptoIndex <= 0) return 100;
+      let wrongCount = 0;
+      wrongIndexes.forEach(i => { if (i < uptoIndex) wrongCount++; });
+      return Math.round(((uptoIndex - wrongCount) / uptoIndex) * 100);
+    }
+
+    function calculateWpm(uptoIndex) {
+      if (!startTime) return 0;
+      const elapsedMinutes = (Date.now() - startTime) / 60000;
+      const wordCount = exampleString.slice(0, uptoIndex).split(/\s+/).filter(Boolean).length;
+      return Math.round(wordCount / elapsedMinutes);
+    }
+
+    function recordLessonPerformance(accuracy, wpm) {
+      lessonPerformanceHistory.push({ accuracy, wpm });
+      if (lessonPerformanceHistory.length > PERFORMANCE_HISTORY_SIZE) {
+        lessonPerformanceHistory.shift();
+      }
+    }
+
     function updateStats() {
       if (!startTime) return;
-      const elapsedMinutes = (Date.now() - startTime) / 60000;
-      const wordCount = exampleString.slice(0, currentIndex).split(/\s+/).filter(Boolean).length;
-      const wpm = Math.round(wordCount / elapsedMinutes);
-      const accuracy = currentIndex ? Math.round((correctTyped / currentIndex) * 100) : 100;
+      const wpm = calculateWpm(currentIndex);
+      const accuracy = calculateAccuracy(currentIndex);
       statsDisplay.innerHTML = `WPM: ${wpm} | Accuracy: ${accuracy}%`;
       updateLetterAccuracyDisplay();
     }
@@ -417,6 +557,7 @@ let wordList = [];
       highlightKey(e.code, e.key, isCorrect ? 'correct-pressed' : 'incorrect-pressed');
 
       if (e.key === "Enter" && currentIndex >= exampleString.length) {
+        recordLessonPerformance(calculateAccuracy(currentIndex), calculateWpm(currentIndex));
         lessonCount++;
         lessonsSinceLastUnlock++;
         checkUnlockConditions();
@@ -444,9 +585,6 @@ let wordList = [];
           prev.classList.remove("correct", "error", "fixed");
           if (wrongIndexes.has(currentIndex)) {
             correctedIndexes.delete(currentIndex);
-          } else {
-            wrongIndexes.delete(currentIndex);
-            correctTyped--;
           }
           document.querySelectorAll('.cursor').forEach(c => c.classList.remove('cursor'));
           prev.classList.add("cursor");
@@ -466,7 +604,6 @@ let wordList = [];
       if (!perLetterStats[expectedLower]) perLetterStats[expectedLower] = { correct: 0, total: 0, history: [] };
 
       if (typedChar === expected) {
-        correctTyped++;
         if (wrongIndexes.has(currentIndex)) {
           span.classList.add("fixed");
           correctedIndexes.add(currentIndex);
@@ -612,6 +749,7 @@ let wordList = [];
     }
     document.getElementById("settings-btn").onclick = () => {
         document.getElementById("settings-popup").style.display = "flex";
+        updateAdvancedSettingsDisplay();
     };
 
     // Settings popup close

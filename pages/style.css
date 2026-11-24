@@ -160,6 +160,20 @@
     #export-btn {
     margin-top: 10px;
     }
+    #unlock-requirements {
+    margin-top: 8px;
+    font-size: 14px;
+    text-align: center;
+    max-width: 90vw;
+    line-height: 1.5;
+    }
+    .req-met {
+    color: green;
+    font-weight: bold;
+    }
+    .req-unmet {
+    color: #b30000;
+    }
     #navbar {
     width: 100%;
     background: #ffffff;
@@ -250,6 +264,71 @@
         transform: scale(1);
     }
 }
+
+/* ------------------------------
+   ADVANCED SETTINGS (inside the settings popup)
+------------------------------ */
+
+#advanced-settings {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    text-align: left;
+}
+
+#advanced-settings h3 {
+    margin: 0 0 5px 0;
+    font-size: 1rem;
+}
+
+.advanced-note {
+    font-size: 0.8rem;
+    color: #666;
+    margin: 0 0 12px 0;
+}
+
+.advanced-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.advanced-label {
+    font-weight: bold;
+    width: 55px;
+    flex-shrink: 0;
+    font-size: 0.9rem;
+}
+
+.advanced-btn {
+    background: #eee;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.advanced-btn:hover:not(:disabled) {
+    background: #ddd;
+}
+
+.advanced-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.advanced-display {
+    font-family: monospace;
+    font-size: 0.78rem;
+    color: #444;
+    margin: 0 0 12px 63px;
+    word-break: break-word;
+}
+
 /* ------------------------------
    LOGIN PAGE LAYOUT
 ------------------------------ */

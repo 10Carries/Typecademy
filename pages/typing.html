@@ -93,6 +93,7 @@
     </div>
   </div>
   <div id="stats"></div>
+  <div id="unlock-requirements"></div>
   <div id="letter-accuracy" style="margin-top:20px; font-family:monospace;"></div>
   <button id="export-btn">Export Save Data</button>
   <label for="import-input">Import Save Data:</label>
@@ -104,6 +105,25 @@
           <h2>Settings</h2>
 
           <p>More settings will go here later!</p>
+
+          <div id="advanced-settings">
+            <h3>Advanced</h3>
+            <p class="advanced-note">Manually move your progress back or forward — handy for testing or undoing a mistake.</p>
+
+            <div class="advanced-row">
+              <span class="advanced-label">Letters</span>
+              <button id="letter-back-btn" class="advanced-btn" title="Lock the most recently unlocked letter">◀</button>
+              <button id="letter-forward-btn" class="advanced-btn" title="Unlock the next letter">▶</button>
+            </div>
+            <div id="letter-progress-display" class="advanced-display"></div>
+
+            <div class="advanced-row">
+              <span class="advanced-label">Lesson</span>
+              <button id="lesson-back-btn" class="advanced-btn" title="Back 1 lesson">◀</button>
+              <button id="lesson-forward-btn" class="advanced-btn" title="Forward 1 lesson">▶</button>
+            </div>
+            <div id="lesson-progress-display" class="advanced-display"></div>
+          </div>
       </div>
   </div>
   <script type="module" src="./script.js"></script>
